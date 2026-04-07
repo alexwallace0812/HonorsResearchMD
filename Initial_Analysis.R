@@ -1,10 +1,12 @@
-install.packages("ggplot2")  # if you haven't already
+install.packages("ggmap")
+install.packages("maps")
 library(ggplot2)
+library(maps)
 awareness <- as.data.frame(table(med_diet$V36))
 df <- `Resident.MD.Survey_March.24,.2026_13.39`  
 df <- df[-c(3,4), ] # skip the header rows
 head(df)
-demographics <- df [, c("V1", "V5", "V8", "V9", "V10")]
+demographics <- df [, c("V1", "V5", "V8", "V9", "V10", "V4")]
 grocery_habits <- df[, c("V11", "V12", "V13", "V14", "V15", "V16")]
 cooking        <- df[, c("V17", "V18", "V19")]
 med_diet       <- df[, c("V20", "V21", "V22", "V23", "V24")]
@@ -67,7 +69,29 @@ ggplot(awareness, aes(x=Response, y=Freq)) +
 
 
 # Cross tabulating
+# Age awareness
+ageAware <- data.frame(
+  Age = demographics$V4,
+  Awareness = med_diet$V20
+)
 
+
+ggplot(ageAware, aes(x=Age, fill=Awareness)) +
+  geom_bar(position="dodge") +
+  labs(title="MD Awareness by Age", x="", y="Count") +
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+# End age awareness
+
+# Interest vs. Awareness
+interestAware <- data.frame(
+  Interest = med_diet$V23, 
+  Awareness = med_diet$V20
+)
+
+ggplot(interestAware, aes(x=Awareness, fill=Interest)) +
+  geom_bar(position="dodge") +
+  labs(title="MD Interest by Awareness", x="", y="Count") +
+  theme(axis.text.x = element_text(angle=45, hjust=1))
 
 # Male vs. Female awareness
 genderAware <- data.frame(
@@ -137,3 +161,36 @@ ggplot(cookingTime, aes(x=Cook, fill=Awareness)) +
   geom_bar(position="dodge") +
   labs(title="MD Awareness by Cook Time", x="", y="Count") +
   theme(axis.text.x = element_text(angle=45, hjust=1))
+
+
+# NC Map Awareness
+town_awareness <- as.data.frame(table(df$V1[med_diet$V20 == "Yes"]))
+colnames(town_awareness) <- c("Town", "Count")
+
+
+coords <- data.frame(
+  Town = c("Cary", "Clemmons", "Durham", "Greensboro", "High Point", 
+           "Lexington", "Mocksville", "Statesville", "Stokesdale", 
+           "Summerfield", "Winston-Salem"),
+  Lat  = c(35.7915, 36.0343, 35.9940, 36.0726, 35.9557,
+           35.8237, 35.8921, 35.7815, 36.2365,
+           36.2090, 36.0999),
+  Long = c(-78.7811, -80.3820, -78.8986, -79.7910, -79.9939,
+           -80.2534, -80.5629, -80.8498, -79.9736,
+           -79.9827, -80.2442)
+)
+
+
+map_data_nc <- merge(town_awareness, coords, by="Town")
+
+nc_map <- map_data("state") |> subset(region == "north carolina")
+
+ggplot() +
+  geom_polygon(data=nc_map, aes(x=long, y=lat, group=group), 
+               fill="lightgray", color="white") +
+  geom_point(data=map_data_nc, aes(x=Long, y=Lat, size=Count, color=Town), 
+             alpha=0.8) +
+  scale_size_continuous(range=c(3, 12)) +
+  coord_fixed(ratio=1.3) +
+  labs(title="MD Awareness by Town in NC", size="# Aware", color="Town") +
+  theme_void()
